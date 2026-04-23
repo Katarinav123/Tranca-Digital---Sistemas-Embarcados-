@@ -1,0 +1,136 @@
+#include <Keypad.h>
+#include <Password.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+LiquidCrystal_I2C lcd(0x50, 16, 2);
+
+const byte NUMERO_LINHAS = 4;
+const byte NUMERO_COLUNAS = 3;
+
+char mapaDoTeclado[NUMERO_LINHAS][NUMERO_COLUNAS] = {
+  {'1', '2', '3'},
+  {'4', '5', '6'},
+  {'7', '8', '9'},
+  {'*', '0', '#'}
+};
+
+byte pinosDasLinhas[NUMERO_LINHAS] = {4, 5, 6, 7};
+byte pinosDasColunas[NUMERO_COLUNAS] = {8, 9, 10};
+
+Keypad teclado = Keypad(
+  makeKeymap(mapaDoTeclado),
+  pinosDasLinhas,
+  pinosDasColunas,
+  NUMERO_LINHAS,
+  NUMERO_COLUNAS
+);
+
+Password senha = Password("123");
+
+const int PINO_LED = 13;
+int quantidadeDeDigitos = 0;        
+const int MAXIMO_DE_DIGITOS = 3;  
+
+void setup() {
+  pinMode(PINO_LED, OUTPUT);
+  digitalWrite(PINO_LED, LOW);
+
+  lcd.init();
+  lcd.backlight();
+
+  lcd.setCursor(0, 0);
+  lcd.print("Tranca Eletronica");
+  lcd.setCursor(0, 1);
+  lcd.print("Digite a senha:");
+
+  delay(2000);
+
+  pedirSenha();
+}
+
+void loop() {
+  char teclaPressionada = teclado.getKey();
+
+  if (teclaPressionada != NO_KEY) {
+    processarTecla(teclaPressionada);
+  }
+}
+
+void pedirSenha() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Digite a senha:");
+  lcd.setCursor(0, 1);
+  lcd.print("Senha: ");
+
+  senha.reset();
+  quantidadeDeDigitos = 0;
+}
+
+void processarTecla(char tecla) {
+
+  if (tecla >= '0' && tecla <= '9') {
+
+    if (quantidadeDeDigitos < MAXIMO_DE_DIGITOS) {
+      senha.append(tecla);
+      quantidadeDeDigitos++;
+
+      lcd.setCursor(7 + quantidadeDeDigitos - 1, 1);
+      lcd.print("*");
+    }
+  }
+
+  else if (tecla == '*') {
+    verificarSenha();
+  }
+
+  else if (tecla == '#') {
+    pedirSenha();
+  }
+}
+
+void verificarSenha() {
+
+  if (quantidadeDeDigitos < MAXIMO_DE_DIGITOS) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Digite 3 digitos!");
+    delay(2000);
+    pedirSenha();
+    return;
+  }
+
+  if (senha.evaluate()) {
+    acessoAutorizado();
+  } else {
+    acessoNegado();
+  }
+}
+
+void acessoAutorizado() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Acesso");
+  lcd.setCursor(0, 1);
+  lcd.print("autorizado!");
+
+  digitalWrite(PINO_LED, HIGH);
+  delay(1000);
+  digitalWrite(PINO_LED, LOW);
+
+  delay(1000);
+
+  pedirSenha();
+}
+
+void acessoNegado() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Acesso nao");
+  lcd.setCursor(0, 1);
+  lcd.print("autorizado!");
+
+  delay(2000);
+  pedirSenha();
+}
